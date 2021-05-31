@@ -1,13 +1,12 @@
 import numpy as np
 import torch
 
-
 def check_shape(data, shape:tuple):
     pass
 
 def shape(x):
-    # if isinstance(x, torch.Tensor):
-    #     return x.get_shape().as_list()
+    if isinstance(x, torch.TensorType):
+        return x.size()
     return np.shape(x)
 
 def molecules():
@@ -84,11 +83,15 @@ def get_atom_indices(n_atoms, batch_size):  # (5,2)
 
     offset = np.zeros((n_distances * batch_size, 3), dtype=np.float32)  # (20*2,3)
     ratio_j = np.ones((n_distances * batch_size,), dtype=np.float32)  # (20*2,)
-    seg_j = np.arange(n_distances * batch_size, dtype=np.int32)  # np.arange(40)
+    seg_j = np.arange(n_distances * batch_size, dtype=np.int64)  # np.arange(40)
 
     seg_m, idx_ik, seg_i, idx_j, seg_j, offset, ratio_j = \
         torch.tensor(seg_m), torch.tensor(idx_ik, dtype=torch.int64), torch.tensor(seg_i), torch.tensor(idx_j, dtype=torch.int64), \
-        torch.tensor(seg_j), torch.tensor(offset), torch.tensor(ratio_j)
+        torch.tensor(seg_j, dtype=torch.int64), torch.tensor(offset), torch.tensor(ratio_j)
     idx_jk = idx_j
-    return seg_m, idx_ik, seg_i, idx_j, idx_jk, seg_j, offset, ratio_j
+    seg_i_sum = []
+    for p in range(n_atoms):
+        seg_i_sum.append(p*(n_atoms-1))
+    seg_i_sum = torch.tensor(seg_i_sum, dtype=torch.int64)
 
+    return seg_m, idx_ik, seg_i, idx_j, idx_jk, seg_j, offset, ratio_j, seg_i_sum

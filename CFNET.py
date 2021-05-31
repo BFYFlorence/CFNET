@@ -1,15 +1,11 @@
-from torch.functional import F
-from functools import wraps
 import torch
 import torch.nn as nn
 import numpy as np
 from my_dense import Dense
 from my_activation import shifted_softplus
-from distances import EuclideanDistances
-from my_rbf import RBF
-from my_utils import get_atom_indices, molecules
+
 from my_poolsegments import PoolSegments
-from embedding import Embedding
+
 """
 tensor.FloatTensor
 tensor.LongTensor
@@ -68,26 +64,34 @@ class CFConv(nn.Module):
                              name='fac2out')
         self.pool = PoolSegments(mode=self.pool_mode)
 
-    def forward(self, x, w, seg_i, idx_j):
+    def forward(self, x, w_ij, seg_i, idx_j, seg_i_sum):
         '''
-                :param x (num_atoms, num_feats): input
-                :param w (num_interactions, num_filters): filters
-                :param seg_i (num_interactions,): segments of atom i
-                :param idx_j: (num_interactions,): indices of atom j
-                :return: convolution x * w
-                '''
+            :param x (num_atoms, num_feats): input
+            :param w (num_interactions, num_filters): filters
+            :param seg_i (num_interactions,): segments of atom i
+            :param idx_j: (num_interactions,): indices of atom j
+            :return: convolution x * w
+        '''
         # to filter-space
-        f = self.in2fac(x)
 
+        f = self.in2fac(x)
         # filter-wise convolution
         f = torch.index_select(f, dim=0, index=idx_j)
-        wf = w * f
-        conv = self.pool(wf, seg_i)
+        # print("idx_j:", idx_j)
+        print("f:", f.shape, f)
+
+        wf = w_ij * f
+        print("wf:", wf.shape, wf)
+        print("seg_i:", seg_i)
+        # print(wf[:,:2])
+        conv = self.pool(wf, seg_i, seg_i_sum)
+        # print(conv[0][:2])
+        # print(conv[1][:2])
 
         # to output-space
-        y = self.fac2out(conv)
-        return y
-
+        c = self.fac2out(conv)
+        print("c:", c.shape, c)
+        return c
 
 class CFnetFilter(nn.Module):
     def __init__(self, input_size, filters_num, pool_mode='sum', name=None):
@@ -97,13 +101,14 @@ class CFnetFilter(nn.Module):
         self.pool_mode = pool_mode
         self.dense1 = Dense(input_size, filters_num, activation=shifted_softplus)
         self.dense2 = Dense(filters_num, filters_num, activation=shifted_softplus)
-        # print("input_size:", input_size)
-        # self.pooling = PoolSegments(self.pool_mode)
+        self.pooling = PoolSegments(self.pool_mode)
 
     def forward(self, dijk, seg_j, ratio_j=1.):
         h = self.dense1(dijk)
         w_ijk = self.dense2(h)
-        return w_ijk
+        w_ij = self.pooling(w_ijk, seg_j, seg_j)
+
+        return w_ij
 
 class CFNetInteractionBlock(nn.Module):
     def __init__(self, n_in, n_basis, n_filters, pool_mode='sum',
@@ -115,18 +120,18 @@ class CFNetInteractionBlock(nn.Module):
         super(CFNetInteractionBlock, self).__init__()
         self.filternet = CFnetFilter(self.n_in, self.n_filters,
                                       pool_mode=self.pool_mode)
-        self.cfconv = CFConv(
-            self.n_basis, self.n_basis, self.n_filters,
-            activation=shifted_softplus
-        )
-        """
-        self.dense = L.Dense(self.n_basis, self.n_basis)"""
 
-    def forward(self, x, dijk, idx_j, seg_i, seg_j, ratio_j=1.):
-        w = self.filternet(dijk, seg_j, ratio_j)
-        # print(x.shape, w.shape, seg_i.shape, idx_j.shape)
-        h = self.cfconv(x, w, seg_i, idx_j)
-        v = self.dense(h)
+        self.cfconv = CFConv(self.n_basis, self.n_basis, self.n_filters,
+                             activation=shifted_softplus)
+
+        self.dense = Dense(self.n_basis, self.n_basis)
+
+    def forward(self, x, dijk, idx_j, seg_i, seg_j, seg_i_sum,ratio_j=1.):
+        w_ij = self.filternet(dijk, seg_j, ratio_j)
+        # print("w_ij:",w_ij.shape,w_ij[:,:2])
+        c = self.cfconv(x, w_ij, seg_i, idx_j, seg_i_sum)
+        v = self.dense(c)
+
         y = x + v
         return y, v
 
@@ -158,38 +163,5 @@ class CFnet(nn.Module):
         self.std_per_atom = std_per_atom
         super(CFnet, self).__init__()
 
-# filter = CFnetFilter(5, 64)
-
-my_embedding = Embedding(100, 128)
-batch_size = 1
-mol = molecules()
-nuclear_charges = mol["numbers"]
-# [1 1 6 6 6]
-charges = torch.tile(torch.tensor(nuclear_charges.ravel(), dtype=torch.int64),(batch_size,))
-
-Rlist = [np.random.rand(2, 3).astype(np.float32), np.random.rand(3, 3).astype(np.float32)]
-R = np.vstack(Rlist)  # (5, 3)
-
-# idx_ik = seg_i
-idx_ik = get_atom_indices(5,1)[1]
-# print(seg_i)  # [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
-
-# idx_jk = idx_j
-idx_jk = get_atom_indices(5,1)[4]
-offset = get_atom_indices(5,1)[-2]
-# [0,...19]
-seg_j = get_atom_indices(5,1)[-3]  # 距离索引
-
-cutoff = 30.
-gap = 0.1
-n_basis = 128
-n_filters = 128
-
-dist = EuclideanDistances()
-dijk = dist(torch.tensor(R),offset,idx_ik,idx_jk)  # [20, 1]
-rbf = RBF(0., cutoff, gap)
-
-interaction_blocks = CFNetInteractionBlock(rbf.fan_out, n_basis, n_filters, name="interaction")
-x = my_embedding.forward(charges)  # embedding [5, 128]
-dijk = rbf(dijk)  # [20, 300]
-interaction_blocks(x, dijk, idx_jk, idx_ik, seg_j)
+    def forward(self):
+        pass

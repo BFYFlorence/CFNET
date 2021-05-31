@@ -10,15 +10,18 @@ import torch
 
 class PoolSegments(nn.Module):
     def __init__(self, mode='sum', name=None):
-        """if mode == 'sum':
-            self._reduce = torch.segment_sum
+        if mode == 'sum':
+            self._reduce = torch.index_add
         elif mode == 'mean':
-            self._reduce = torch.segment_mean"""
+            pass
+            # self._reduce = torch.segment_mean
         super(PoolSegments, self).__init__()
 
-    def forward(self, x, segs):
-        # print(x)
+    def forward(self, x, segs, segs_pool):
+        zeros = torch.zeros(size=(x.shape))
+        # torch.index_add(input=zeros, dim=0, index=segs, source=x)  # out-of-place
+        y = self._reduce(input=zeros, dim=0, index=segs, source=x)
+        y = torch.index_select(input=y, dim=0, index=segs_pool)
         # print(segs)
-        # y = self._reduce(x, segs)
-        # return y
-        pass
+        # print(y[:,:2])
+        return y
