@@ -21,6 +21,8 @@ class EuclideanDistances(nn.Module):
         # idx_jk:需要遍历的其他原子下标
 
         ri = torch.index_select(r, dim=0, index=idx_ik)  # broadcast
+        # print("r:", r, r.shape)
+        # print("idx_jk:", idx_jk, idx_jk.shape)
 
         rj = torch.index_select(r, dim=0, index=idx_jk) + offsets
 
@@ -29,5 +31,6 @@ class EuclideanDistances(nn.Module):
         # 计算原子之间的距离
         dij2 = torch.sum(rij ** 2, dim=-1, keepdim=True)
         dij = torch.sqrt(F.relu(dij2))  # (n*(n-1), 1)
+
 
         return dij

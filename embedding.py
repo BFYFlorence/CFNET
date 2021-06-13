@@ -1,12 +1,11 @@
 import torch
 from my_dense import Dense
-import numpy as np
 # import tensorflow as tf
-from my_utils import molecules
+import torch.nn as nn
 
-class Embedding:
+class Embedding(nn.Module):
     def __init__(self, n_embeddings,
-                 dim,  # 128
+                 dim,  # 64
                  # embedding_init=None,
                  trainable=True,
                  name=None,
@@ -20,16 +19,15 @@ class Embedding:
 
         self.embeddings = Dense(self.n_embeddings, self.dim, use_bias=False,
                                 trainable=self.trainable,
-                                name='embeddings')
+                                name="{0}_embeddings".format(name))
 
     def forward(self, indices:torch.Tensor):
         I = torch.eye(self.n_embeddings, dtype=self.dtype)
-
         # 1. 0. 0. 0. 0.
         # 0. 1. 0. 0. 0.
         # 0. 0. 1. 0. 0.
         # 0. 0. 0. 1. 0.
-        # 0. 0. 0. 0. 1.  ...I
+        # 0. 0. 0. 0. 1.  ...I:待选的one-hot编码范围(n,n)，虽然可能体系原子m<n,但是只要满足n>m即可
         ind = torch.index_select(I, dim=0, index=indices)
         # print(ind)  # one-hot
         y = self.embeddings(ind)  # 初始化会全为1，之后再优化

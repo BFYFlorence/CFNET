@@ -18,7 +18,7 @@ class RBF(nn.Module):
         self.centers = np.expand_dims(self.centers, -1)  # (bins,1)
 
         self.n_centers = len(self.centers)  # bins
-        self._dtype = dtype
+        self.dtype = dtype
         self.fan_out = self.dim * self.n_centers
 
     def forward(self,
@@ -27,20 +27,20 @@ class RBF(nn.Module):
         if not isinstance(d, torch.FloatType):
             # make sure the input is tensor-like
             print("chaning the type of tensor...")
-            d = d.type(self._dtype)
+            d = d.type(self.dtype)
             print("done!")
 
         d_shape = shape(d)  # torch.Size([1])
 
-        centers = self.centers.reshape((-1,)).astype(np.float32)
+        centers = torch.tensor(self.centers.reshape((-1,)).astype(np.float32), dtype=self.dtype)
 
-        d -= centers  # 计算偏离每个中心的距离
+        d = d - centers  # 计算偏离每个中心的距离；不可以写成d-=centers,这样会报形状错误
         rbf = torch.exp(-(d ** 2) / self.gap)  # 计算径向基函数值
         rbf = rbf.reshape((d_shape[0], self.fan_out))
+
         return rbf
 
 # rbf = RBF(0.,30.,0.1)
 # print(rbf.fan_out)
 # d = np.array([1.5])
 # rbf.forward(torch.tensor(d))
-

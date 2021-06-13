@@ -1,30 +1,33 @@
 import torch
 import torch.nn as nn
 from my_utils import shape
+from my_initializer import *
 
 class Dense(nn.Module):
     def __init__(self,
-                 fan_in:int,
-                 fan_out:int,
+                 fan_in: int,
+                 fan_out: int,
                  use_bias=True, activation=None,
                  trainable=True, name=None, dtype=torch.float32):
         super(Dense, self).__init__()
-        self._fan_in = fan_in
-        self._fan_out = fan_out
-        self._use_bias = use_bias
+        self.fan_in = fan_in
+        self.fan_out = fan_out
+        self.use_bias = use_bias
         self.activation = activation
-        self._trainable = trainable
+        self.trainable = trainable
         # shape = (self._fan_in, self._fan_out)
-        self._dtype = dtype
-        self.W = torch.ones((self._fan_in, self._fan_out), dtype=self._dtype)
-        self.b = torch.zeros((self._fan_out,), dtype=self._dtype)
+        self.dtype = dtype
+        self.W = nn.Parameter(glorot_uniform(self.fan_in, self.fan_out))
+        self.b = nn.Parameter(torch.zeros((self.fan_out,), dtype=self.dtype))
+        self.register_parameter("{0}_{1}".format(name, "W"), self.W)
+        self.register_parameter("{0}_{1}".format(name, "b"), self.b)
 
-    def forward(self, x:torch.Tensor):
+    def forward(self, x: torch.Tensor):
         # print(x)
         if not isinstance(x, torch.FloatType):
             # make sure the input is tensor-like
             print("chaning the type of tensor...")
-            x = x.type(self._dtype)
+            x = x.type(self.dtype)
             print("done!")
 
         x_shape = shape(x)  # (n,fan_in)
@@ -32,14 +35,14 @@ class Dense(nn.Module):
         # print(self._fan_in)
         ndims = len(x_shape)  # 2
         # reshape for broadcasting
-        if not x_shape[-1] == self._fan_in:
+        if not x_shape[-1] == self.fan_in:
             print(x_shape[-1])
-            print(self._fan_in)
-        x_r = torch.reshape(x, (-1, self._fan_in))
+            print(self.fan_in)
+        x_r = torch.reshape(x, (-1, self.fan_in))
         # 权重与张量乘积
         y = torch.matmul(x_r, self.W)
         # 是否使用偏置
-        if self._use_bias:
+        if self.use_bias:
             y += self.b
         # 激活
         if self.activation:

@@ -18,6 +18,9 @@ class PoolSegments(nn.Module):
         super(PoolSegments, self).__init__()
 
     def forward(self, x, segs, segs_pool):
+        # print("x:", x.shape, x)
+        # print("segs:", segs.shape, segs)
+        # print("segs_pool:", segs_pool.shape, segs_pool)
         zeros = torch.zeros(size=(x.shape))
         # torch.index_add(input=zeros, dim=0, index=segs, source=x)  # out-of-place
         y = self._reduce(input=zeros, dim=0, index=segs, source=x)

@@ -158,7 +158,7 @@ def train_classifier():
     loss = 0
     lowest_loss = 9999
     checkpoint_path = './{0}'.format(dir)
-    launchTimestamp = os.times()
+    # launchTimestamp = os.times()
 
     labels = torch.tensor(  # torch.Size([30000, 2])
         np.concatenate((np.hstack((np.zeros(shape=(modi_bind.shape[0], 1)), np.ones(shape=(modi_bind.shape[0], 1)))),

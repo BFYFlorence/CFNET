@@ -76,8 +76,11 @@ class Preprocess:
         print(name)
         return "error"
 
-    def defaultdict_list(self):  # nesting
+    def defaultdict_list_1(self):  # nesting_1
         return defaultdict(list)
+
+    def defaultdict_list_2(self):  # nesting_2
+        return defaultdict(self.defaultdict_list_1)
 
     def readHeavyAtom(self, path, bond_len, bond_ang, dihedral_phi, dihedral_psi):
         print(path)
@@ -168,7 +171,7 @@ class Preprocess:
 
     def statistics(self):
         bond_len = defaultdict(list)
-        bond_ang = defaultdict(self.defaultdict_list)
+        bond_ang = defaultdict(self.defaultdict_list_1)
         dihedral_phi = defaultdict(list)
         dihedral_psi = defaultdict(list)
 
@@ -206,5 +209,72 @@ class Preprocess:
                         temp_list.append(j)
             np.save("./{0}_reduced.npy".format(types), temp_list)
 
-pp=Preprocess()
+    def load_mol_E(self, path):
+        print("Reading: ", path)
+        E = []
+        with open(path, 'r') as file:
+            for i in file.readlines():
+                record = i.strip()
+                if record[0] != '#':
+                    energy = float(record.split()[-1])
+                    E.append(energy)
+        # print(len(E))
+        return E
+        # np.save("./c7o2h10_equilibrium.npy", E)
+
+    def load_mol_cor(self, path):
+        print("Reading: ", path)
+        cors_over_trajectory = []
+        atoms_over_trajectory = []
+        single_atoms = []
+        single_cor = []
+        natoms = 0
+        atoms_i = 0
+        with open(path, 'r') as file:
+            for i in file.readlines():
+                record = i.strip()
+                if len(record.split()) != 1:
+                    if record.split(":")[0] == 'Iteration':
+                        single_cor = []
+                        single_atoms = []  # be careful when using list.clear()
+                    else:
+                        record = record.split()
+                        X = float(record[-3])
+                        Y = float(record[-2])
+                        Z = float(record[-1])
+                        single_atoms.append(record[0])
+                        single_cor.append([X,Y,Z])
+                        atoms_i += 1
+                        if atoms_i == natoms:
+                            cors_over_trajectory.append(single_cor)
+                            atoms_over_trajectory.append(single_atoms)
+                            atoms_i = 0
+                else:
+                    natoms = int(record.split()[0])
+        return cors_over_trajectory, atoms_over_trajectory
+
+    def load_mol_E_batch(self):
+        start = 1000
+        data = defaultdict(self.defaultdict_list_1)
+        for i in range(2010):
+            serial = i + start
+            path_E = "/Users/erik/Downloads/c7o2h10_md/c7o2h10_md/{0}.energy.dat".format(serial)
+            path_XYZ = "/Users/erik/Downloads/c7o2h10_md/c7o2h10_md/{0}.xyz".format(serial)
+            if os.path.exists(path_E):
+                E_over_trajectory = self.load_mol_E(path=path_E)
+                cors_atoms = self.load_mol_cor(path=path_XYZ)
+
+                data[str(serial)]["cors"] = cors_atoms[0]
+                data[str(serial)]["E"] = E_over_trajectory
+                data[str(serial)]["atoms"] = cors_atoms[1]
+
+        np.save("./c7o2h10_md.npy", data)
+
+# pp=Preprocess()
+# pp.load_mol_E_batch()
+# print(pp.load_mol_E(path="/Users/erik/Downloads/c7o2h10_md/c7o2h10_equilibrium.dat"))
+# c7o2h10_md = np.load("./c7o2h10_md.npy", allow_pickle=True).item()
+# Keys = c7o2h10_md.keys()
+# print(Keys)
+# print(c7o2h10_md["1000"].keys())
 
