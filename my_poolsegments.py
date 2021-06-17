@@ -9,12 +9,14 @@ tf.segment_sum(c, tf.constant([0, 0, 1]))
 import torch
 
 class PoolSegments(nn.Module):
-    def __init__(self, mode='sum', name=None):
+    def __init__(self, mode='sum', name=None, gpu=False):
         if mode == 'sum':
             self._reduce = torch.index_add
         elif mode == 'mean':
             pass
             # self._reduce = torch.segment_mean
+        
+        self.gpu = gpu
         super(PoolSegments, self).__init__()
 
     def forward(self, x, segs, segs_pool):
@@ -22,6 +24,8 @@ class PoolSegments(nn.Module):
         # print("segs:", segs.shape, segs)
         # print("segs_pool:", segs_pool.shape, segs_pool)
         zeros = torch.zeros(size=(x.shape))
+        if self.gpu:
+            zeros = zeros.cuda()
         # torch.index_add(input=zeros, dim=0, index=segs, source=x)  # out-of-place
         y = self._reduce(input=zeros, dim=0, index=segs, source=x)
         y = torch.index_select(input=y, dim=0, index=segs_pool)

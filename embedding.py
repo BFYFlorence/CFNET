@@ -9,20 +9,25 @@ class Embedding(nn.Module):
                  # embedding_init=None,
                  trainable=True,
                  name=None,
-                 dtype=torch.float32):
+                 dtype=torch.float32,
+                 gpu=False):
         super(Embedding, self).__init__()
         self.n_embeddings = n_embeddings
         self.dim = dim
         # self.embedding_init = embedding_init
         self.trainable = trainable
         self.dtype = dtype
-
+        self.gpu = gpu
         self.embeddings = Dense(self.n_embeddings, self.dim, use_bias=False,
                                 trainable=self.trainable,
                                 name="{0}_embeddings".format(name))
-
+        """if self.gpu:
+            self.embeddings = self.embeddings.cuda()"""
+        
     def forward(self, indices:torch.Tensor):
         I = torch.eye(self.n_embeddings, dtype=self.dtype)
+        if self.gpu:
+            I = I.cuda()
         # 1. 0. 0. 0. 0.
         # 0. 1. 0. 0. 0.
         # 0. 0. 1. 0. 0.

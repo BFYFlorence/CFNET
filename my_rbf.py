@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,22 +6,28 @@ from my_utils import shape
 
 class RBF(nn.Module):
     def __init__(self, low, high, gap,
-                 dim=1,
-                 name=None, dtype=torch.float32):
+                 dim=torch.tensor(1, dtype=torch.int32),
+                 name=None, dtype=torch.float32,
+                 gpu=False):
         super(RBF, self).__init__()
+        self.dtype = dtype
+        self.gpu = gpu
         self.low = low
         self.high = high
         self.gap = gap  # 决定rbf的间隔
-        self.dim = dim  # 维度扩充
+        self.dim = dim.cuda() if self.gpu else dim  # 维度扩充
         xrange = high - low
-        bins = int(np.ceil(xrange / gap))  # 计算在此间隔下，允许划分的组数
-        self.centers = np.linspace(low, high, bins)  # (bins,)
-        self.centers = np.expand_dims(self.centers, -1)  # (bins,1)
-
+        bins = torch.ceil(xrange / gap).int()  # 计算在此间隔下，允许划分的组数
+        self.centers = torch.linspace(low, high, bins)  # (bins,)
+        self.centers = torch.tensor(np.expand_dims(self.centers, -1), dtype=self.dtype)  # (bins,1)
         self.n_centers = len(self.centers)  # bins
-        self.dtype = dtype
         self.fan_out = self.dim * self.n_centers
-
+        
+        if self.gpu:
+            self.centers = self.centers.cuda()
+            # self.gap = self.gap.cuda()
+            self.fan_out = self.fan_out.cuda()
+            
     def forward(self,
                 d:torch.Tensor  # (1,)
                 ):
@@ -32,7 +39,7 @@ class RBF(nn.Module):
 
         d_shape = shape(d)  # torch.Size([1])
 
-        centers = torch.tensor(self.centers.reshape((-1,)).astype(np.float32), dtype=self.dtype)
+        centers = self.centers.reshape((-1,))
 
         d = d - centers  # 计算偏离每个中心的距离；不可以写成d-=centers,这样会报形状错误
         rbf = torch.exp(-(d ** 2) / self.gap)  # 计算径向基函数值

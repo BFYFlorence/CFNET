@@ -19,8 +19,8 @@ class EuclideanDistances(nn.Module):
             print("done!")
         # idx_ik:当前原子下标
         # idx_jk:需要遍历的其他原子下标
-
         ri = torch.index_select(r, dim=0, index=idx_ik)  # broadcast
+        
         # print("r:", r, r.shape)
         # print("idx_jk:", idx_jk, idx_jk.shape)
 

@@ -33,22 +33,32 @@ If the number of dimensions of x and y are not equal, prepend 1 to the dimension
 Then, for each dimension size, the resulting dimension size is the max of the sizes of x and y along that dimension.
 """
 
+# 只有将自定义参数登记入模型中，使用optimizer清洗梯度时才能够正确执行，否则的话未登记的参数梯度会一直积累叠加
+# 如果牵涉到数学运算，不论是四则运算还是高级运算，都要保证数据位于同一个设备上
+# pytorch有一些函数，并不是只要输入都是cuda上，输出就一定在cuda上，例如torch.linspace
+
 class CFConv(nn.Module):
     # Continuous-filter convolution layer
     def __init__(self, fan_in, fan_out, nFM, pool_mode='sum',
-                 activation=None, name=None):
+                 activation=None, name=None, gpu=False):
         super(CFConv, self).__init__()
         self.fan_in = fan_in
         self.fan_out = fan_out
+        self.gpu = gpu
         self.nFM = nFM  # 128
         self.activation = activation
         self.pool_mode = pool_mode
         self.in2fac = Dense(self.fan_in, self.nFM, use_bias=False,
-                            name='{0}_in2fac'.format(name))
+                            name='{0}_in2fac'.format(name), gpu=self.gpu)
         self.fac2out = Dense(self.nFM, self.fan_out, use_bias=True,
                              activation=self.activation,
-                             name='{0}_fac2out'.format(name))
-        self.pool = PoolSegments(mode=self.pool_mode)
+                             name='{0}_fac2out'.format(name), gpu=self.gpu)
+        self.pool = PoolSegments(mode=self.pool_mode, gpu=self.gpu)
+
+        if self.gpu:
+            self.in2fac = self.in2fac.cuda()
+            self.fac2out = self.fac2out.cuda()
+            self.pool = self.pool.cuda()
 
     def forward(self, x, w_ij, seg_i, idx_j, seg_i_sum):
         '''
@@ -80,15 +90,21 @@ class CFConv(nn.Module):
         return c
 
 class CFnetFilter(nn.Module):
-    def __init__(self, input_size, filters_num, pool_mode='sum', name=None):
+    def __init__(self, input_size, filters_num, pool_mode='sum', name=None, gpu=False):
         super(CFnetFilter, self).__init__()
         self.input_size = input_size
         self.filters_num = filters_num
         self.pool_mode = pool_mode
-        self.dense1 = Dense(input_size, filters_num, activation=shifted_softplus, name="{0}_dense1".format(name))
-        self.dense2 = Dense(filters_num, filters_num, activation=shifted_softplus, name="{0}_dense2".format(name))
-        self.pooling = PoolSegments(self.pool_mode)
-
+        self.gpu = gpu
+        self.dense1 = Dense(input_size, filters_num, activation=shifted_softplus, name="{0}_dense1".format(name), gpu=self.gpu)
+        self.dense2 = Dense(filters_num, filters_num, activation=shifted_softplus, name="{0}_dense2".format(name), gpu=self.gpu)
+        self.pooling = PoolSegments(self.pool_mode, gpu=self.gpu)
+        
+        if self.gpu:
+            self.dense1 = self.dense1.cuda()
+            self.dense2 = self.dense2.cuda()
+            self.pooling = self.pooling.cuda()
+        
     def forward(self, dijk, seg_j, ratio_j=1.):
         h = self.dense1(dijk)
         w_ijk = self.dense2(h)
@@ -98,18 +114,25 @@ class CFnetFilter(nn.Module):
 
 class CFNetInteractionBlock(nn.Module):
     def __init__(self, n_in, nFM, pool_mode='sum',
-                 name=None):
+                 name=None,
+                 gpu=False):
+        super(CFNetInteractionBlock, self).__init__()
         self.n_in = n_in
         self.nFM = nFM
         self.pool_mode = pool_mode
-        super(CFNetInteractionBlock, self).__init__()
+        self.gpu = gpu
         self.filternet = CFnetFilter(self.n_in, self.nFM,
-                                      pool_mode=self.pool_mode, name="CFnetFilter")
+                            pool_mode=self.pool_mode, name="CFnetFilter", gpu=self.gpu)
 
         self.cfconv = CFConv(self.nFM, self.nFM, self.nFM,
-                             activation=shifted_softplus, name="CFConv")
+                             activation=shifted_softplus, name="CFConv", gpu=self.gpu)
 
-        self.dense = Dense(self.nFM, self.nFM, name="{0}_dense".format(name))
+        self.dense = Dense(self.nFM, self.nFM, name="{0}_dense".format(name), gpu=self.gpu)
+        
+        if self.gpu:
+            self.filternet = self.filternet.cuda()
+            self.cfconv = self.cfconv.cuda()
+            self.dense = self.dense.cuda()
 
     def forward(self, x, dijk, idx_j, seg_i, seg_j, seg_i_sum, ratio_j=1.):
         w_ij = self.filternet(dijk, seg_j, ratio_j)
@@ -125,35 +148,55 @@ class CFnet(nn.Module):
     def __init__(self, n_interactions, nFM, cutoff,
                  mean_per_atom=torch.zeros((1,), dtype=torch.float32),
                  std_per_atom=torch.ones((1,), dtype=torch.float32),
-                 gap=0.1, atomref=None, intensive=False,
+                 gap=0.1, n_embeddings=100, rbf_start=0.,
+                 atomref=None, intensive=False,
                  filter_pool_mode='sum',
                  return_features=False,
                  shared_interactions=False,
                  atomization_energy=False,
-                 n_embeddings=100,
-                 name=None):
+                 name=None,
+                 gpu=False):
         super(CFnet, self).__init__()
-        self.n_interactions = n_interactions
-        self.nFM = nFM
-        self.n_embeddings = n_embeddings
-        self.cutoff = cutoff
+        self.n_interactions = torch.tensor(n_interactions, dtype=torch.int32)
+        self.nFM = torch.tensor(nFM, dtype=torch.int32)
+        self.n_embeddings = torch.tensor(n_embeddings, dtype=torch.int32)
+        self.cutoff = torch.tensor(cutoff, dtype=torch.float32)
         self.atomization_energy = atomization_energy
         self.shared_interactions = shared_interactions
         self.return_features = return_features
         self.intensive = intensive
         self.filter_pool_mode = filter_pool_mode
         self.atomref = atomref
-        self.gap = gap
-
+        self.gap = torch.tensor(gap, dtype=torch.float32)
+        self.gpu = gpu
         self.mean_per_atom = mean_per_atom
         self.std_per_atom = std_per_atom
-
+        self.rbf_start = torch.tensor(rbf_start, dtype=torch.float32)
+        
+        if gpu:
+            self.n_interactions      = self.n_interactions.cuda()
+            self.nFM                 = self.nFM.cuda()
+            self.n_embeddings        = self.n_embeddings.cuda()
+            self.cutoff              = self.cutoff.cuda()
+            self.rbf_start           = self.rbf_start.cuda()
+            # self.atomization_energy  = self.atomization_energy.cuda()
+            # self.shared_interactions = self.shared_interactions.cuda()
+            # self.return_features     = self.return_features.cuda()
+            # self.intensive           = self.intensive.cuda()
+            # self.filter_pool_mode    = self.filter_pool_mode.cuda()
+            # self.atomref             = self.atomref.cuda()
+            self.gap                 = self.gap.cuda()
+            # self.gpu                 = self.gpu.cuda()
+            self.mean_per_atom       = self.mean_per_atom.cuda()
+            self.std_per_atom        = self.std_per_atom.cuda()
+        
+        
         self.atom_embedding = Embedding(
-            self.n_embeddings, self.nFM, name='atom_embedding'
+            self.n_embeddings, self.nFM, name='atom_embedding', gpu=self.gpu
         )
 
         self.dist = EuclideanDistances()
-        self.rbf = RBF(0., self.cutoff, self.gap)
+        self.rbf = RBF(self.rbf_start, self.cutoff, self.gap, gpu=self.gpu)
 
         if self.shared_interactions:
             self.interaction_blocks = \
@@ -162,7 +205,8 @@ class CFnet(nn.Module):
                         self.rbf.fan_out,  # 300
                         self.nFM,
                         pool_mode=self.filter_pool_mode,
-                        name='interaction')
+                        name='interaction',
+                        gpu=self.gpu)
                 ] * self.n_interactions
         else:
             self.interaction_blocks = \
@@ -170,7 +214,8 @@ class CFnet(nn.Module):
                     CFNetInteractionBlock(
                         self.rbf.fan_out,
                         self.nFM,
-                        name='interaction_' + str(i))
+                        name='interaction_' + str(i),
+                        gpu=self.gpu)
                     for i in range(self.n_interactions)
             ]
 
@@ -179,9 +224,9 @@ class CFnet(nn.Module):
         self.dense2 = Dense(self.nFM // 2, 1, name="{0}_dense2".format(name))
 
         if self.intensive:
-            self.atom_pool = PoolSegments('mean')
+            self.atom_pool = PoolSegments(mode='mean', gpu=self.gpu)
         else:
-            self.atom_pool = PoolSegments('sum')
+            self.atom_pool = PoolSegments(mode='sum', gpu=self.gpu)
 
         """
         self.mean_per_atom = tf.get_variable('mean_per_atom',
@@ -206,6 +251,16 @@ class CFnet(nn.Module):
                                   embedding_init=tf.constant_initializer(0.0),
                                   name='atomref')"""
 
+        """if gpu:
+            self.atom_embedding = self.atom_embedding.cuda()
+            self.dist = self.dist.cuda()
+            self.rbf = self.rbf.cuda()
+            self.interaction_blocks = [self.interaction_blocks[num].cuda() for num in range(self.n_interactions)]
+            self.dense1 = self.dense1.cuda()
+            self.dense2.cuda()
+            self.atom_pool.cuda()"""
+                
+        
     def forward(self, z, r, offsets, idx_ik, idx_jk, idx_j, seg_m, seg_i, seg_j, ratio_j, seg_i_sum):
         # embed atom species
         x = self.atom_embedding(z)

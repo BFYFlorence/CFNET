@@ -8,7 +8,8 @@ class Dense(nn.Module):
                  fan_in: int,
                  fan_out: int,
                  use_bias=True, activation=None,
-                 trainable=True, name=None, dtype=torch.float32):
+                 trainable=True, name=None, dtype=torch.float32,
+                 gpu=False):
         super(Dense, self).__init__()
         self.fan_in = fan_in
         self.fan_out = fan_out
@@ -17,8 +18,16 @@ class Dense(nn.Module):
         self.trainable = trainable
         # shape = (self._fan_in, self._fan_out)
         self.dtype = dtype
-        self.W = nn.Parameter(glorot_uniform(self.fan_in, self.fan_out))
-        self.b = nn.Parameter(torch.zeros((self.fan_out,), dtype=self.dtype))
+        self.gpu = gpu
+        self.W = glorot_uniform(self.fan_in, self.fan_out)
+        self.b = torch.zeros((self.fan_out,), dtype=self.dtype)
+        
+        if self.gpu:
+            self.W = self.W.cuda()
+            self.b = self.b.cuda()
+        
+        self.W = nn.Parameter(self.W)
+        self.b = nn.Parameter(self.b)
         self.register_parameter("{0}_{1}".format(name, "W"), self.W)
         self.register_parameter("{0}_{1}".format(name, "b"), self.b)
 
@@ -40,6 +49,8 @@ class Dense(nn.Module):
             print(self.fan_in)
         x_r = torch.reshape(x, (-1, self.fan_in))
         # 权重与张量乘积
+        # print("x_r:", x_r.device)
+        # print("self.W:", self.W.device)
         y = torch.matmul(x_r, self.W)
         # 是否使用偏置
         if self.use_bias:
@@ -47,7 +58,7 @@ class Dense(nn.Module):
         # 激活
         if self.activation:
             y = self.activation(y)
-        new_shape = (x_shape[0], self._fan_out)
+        new_shape = (x_shape[0], self.fan_out)
 
         y = torch.reshape(y, new_shape)
 
