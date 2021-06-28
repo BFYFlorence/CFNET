@@ -35,9 +35,9 @@ class Dense(nn.Module):
         # print(x)
         if not isinstance(x, torch.FloatType):
             # make sure the input is tensor-like
-            print("chaning the type of tensor...")
+            # print("chaning the type of tensor...")
             x = x.type(self.dtype)
-            print("done!")
+            # print("done!")
 
         x_shape = shape(x)  # (n,fan_in)
         # print(x_shape)

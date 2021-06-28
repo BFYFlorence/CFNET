@@ -109,6 +109,7 @@ for step, (R, E) in enumerate(train_loader):
     # Ep = Ep.requires_grad_(True)
     Ep.backward(retain_graph=True)
     Fp = -R.grad
+    optimizer.zero_grad()
     # print("Ep:", Ep)
     # print("Fp:", Fp)
     loss, errors = CalLoss(Ep, Fp, E, None, rho, fit_forces=False)

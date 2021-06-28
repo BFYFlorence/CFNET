@@ -36,6 +36,7 @@ Then, for each dimension size, the resulting dimension size is the max of the si
 # 只有将自定义参数登记入模型中，使用optimizer清洗梯度时才能够正确执行，否则的话未登记的参数梯度会一直积累叠加
 # 如果牵涉到数学运算，不论是四则运算还是高级运算，都要保证数据位于同一个设备上
 # pytorch有一些函数，并不是只要输入都是cuda上，输出就一定在cuda上，例如torch.linspace
+# train_loss + test_loss
 
 class CFConv(nn.Module):
     # Continuous-filter convolution layer
