@@ -265,19 +265,16 @@ class CFnet(nn.Module):
             self.atom_pool.cuda()"""
                 
         
-    def forward(self, z, r, offsets, idx_ik, idx_jk, idx_j, seg_m, seg_i, seg_j, ratio_j, seg_i_sum):
+    def forward(self, z, r, offsets, idx_i, idx_j, seg_m, seg_j, ratio_j, seg_i_sum):
         # embed atom species
         x = self.atom_embedding(z)
-        # print("x:", x, x.shape)
-
-        # interaction features
-        dijk = self.dist(r, offsets, idx_ik, idx_jk)
-        dijk = self.rbf(dijk)
+        dij = self.dist(r, offsets, idx_i, idx_j)
+        dij = self.rbf(dij)
 
         # interaction blocks
         V = []
         for iblock in self.interaction_blocks:
-            x, v = iblock(x, dijk, idx_j, seg_i, seg_j, seg_i_sum, ratio_j)
+            x, v = iblock(x, dij, idx_j, idx_i, seg_j, seg_i_sum, ratio_j)
             V.append(v)
 
 

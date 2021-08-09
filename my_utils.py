@@ -16,11 +16,10 @@ def molecules(nATOM, Z, R, batch_size):
     n_distances = nATOM ** 2 - nATOM  # 20个距离
     # 将batch大小重复n_atoms次(包含首末), [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
     seg_m = np.repeat(range(batch_size), nATOM).astype(np.int32)
-    # 将batch*n_atoms大小重复n_atoms-1次(不包含末),
+    # 将batch*n_atoms大小重复n_atoms-1次(不包含末),代表原子索引
     # [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
     #  5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9]
-    seg_i = np.repeat(np.arange(nATOM * batch_size), nATOM - 1).astype(np.int32)
-    idx_ik = seg_i
+    idx_i = np.repeat(np.arange(nATOM * batch_size), nATOM - 1).astype(np.int32)
 
     # [1, 2, 3, 4, 0, 2, 3, 4, 0, 1, 3, 4, 0, 1, 2, 4, 0, 1, 2, 3,
     #  6, 7, 8, 9, 5, 7, 8, 9, 5, 6, 8, 9, 5, 6, 7, 9, 5, 6, 7, 8]
@@ -37,11 +36,9 @@ def molecules(nATOM, Z, R, batch_size):
     ratio_j = np.ones((n_distances * batch_size,), dtype=np.float32)  # (20*2,)
     seg_j = np.arange(n_distances * batch_size, dtype=np.int64)  # np.arange(40)
 
-    seg_m, idx_ik, seg_i, idx_j, seg_j, offset, ratio_j = \
-        torch.tensor(seg_m), torch.tensor(idx_ik, dtype=torch.int64), torch.tensor(seg_i), torch.tensor(idx_j,
-                                                                                                        dtype=torch.int64), \
+    seg_m, idx_i, idx_j, seg_j, offset, ratio_j = \
+        torch.tensor(seg_m), torch.tensor(idx_i, dtype=torch.int64), torch.tensor(idx_j, dtype=torch.int64), \
         torch.tensor(seg_j, dtype=torch.int64), torch.tensor(offset), torch.tensor(ratio_j)
-    idx_jk = idx_j
     seg_i_sum = []
     for p in range(nATOM):
         seg_i_sum.append(p * (nATOM - 1))
@@ -58,10 +55,7 @@ def molecules(nATOM, Z, R, batch_size):
         'positions': R,
         'offset': offset,
         'seg_m': seg_m,
-        'seg_i': seg_i,
         'seg_j': seg_j,
-        'idx_ik': idx_ik,
-        'idx_jk': idx_jk,
         'idx_j': idx_j,
         'ratio_j': ratio_j,
         'seg_i_sum': seg_i_sum

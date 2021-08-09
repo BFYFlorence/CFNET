@@ -37,7 +37,7 @@ class RBF(nn.Module):
             d = d.type(self.dtype)
             print("done!")
 
-        d_shape = shape(d)  # torch.Size([1])
+        d_shape = shape(d)  # (batch*n*(n-1), 1)
 
         centers = self.centers.reshape((-1,))
 

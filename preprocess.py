@@ -25,6 +25,14 @@ class Preprocess:
                             'u','v','w','x','y','z']
         self.altLoc = ["", "A"]
         self.torsion_atom = ["N", "C"]
+        self.Z = {"CA":12.01, "N":14.01, "O":16, "S":32.06, "H":1.008, "C":12.01}
+
+    def processIon(self, aa):  # 处理质子化条件
+        if aa in ['ASH']:
+            return 'ASP'
+        if aa in ['HIE', 'HID', 'HIP']:
+            return 'HIS'
+        return aa
 
     def bond_len(self, atom1, atom2):  # N-CA CA-C C-N
         sum = 0
@@ -169,6 +177,39 @@ class Preprocess:
 
         print("done")
 
+    def extract_info_SC(self, path):  # single_chain
+        # 读取pdb文件信息
+        print("Reading:", path)
+        print("Better check out the last column in the input file!")
+        cor_file = []
+        atname = [] # 存储原子类型
+        element = []  # 存储元素类型
+
+        # index = 0  # 向atom中添加A,B两条链坐标
+        with open(path, 'r') as f:
+            for i in f.readlines():
+                cor_atom = []
+                record = i.strip()
+                atom = record[:4].strip()
+                if atom != "ATOM":  # 检测ATOM起始行
+                    continue
+                # serial = record[6:11].strip()  # 697
+                resName = self.processIon(record[17:20].strip())  # PRO, 已处理过质子化条件
+                if resName not in self.aa:
+                    continue
+                # current_chain = record[21].strip()  # 获取chain_ID,A
+                # resSeq = record[22:26].strip()  # 3
+                cor_atom.append(float(record[30:38].strip()))  # Å  x
+                cor_atom.append(float(record[38:46].strip()))  # y
+                cor_atom.append(float(record[46:54].strip()))  # z
+                element.append(record[13].strip())  # C
+                atname.append(record[12:16].strip())  # CA
+                cor_file.append(cor_atom)
+
+        # result = {"cor_x": cor_x, "cor_y": cor_y, "cor_z": cor_z, "element": element}
+        return cor_file, atname, element
+
+
     def statistics(self):
         bond_len = defaultdict(list)
         bond_ang = defaultdict(self.defaultdict_list_1)
@@ -270,11 +311,48 @@ class Preprocess:
 
         np.save("./c7o2h10_md.npy", data)
 
+    def load_pro_cor(self):
+        traj_num = 5
+        frame_num = 25000
+        cor_set = []
+        path = "/home/caofan/RAF/crystal_WT/test/{0}/frame_pbc/md{1}.pdb"
+        for i in range(1, traj_num+1):
+            for j in range(frame_num):
+                cor_file = self.extract_info_SC(path.format(i, j))[0]
+                cor_set.append(cor_file)
+        np.save("./cor_set.npy", cor_set)
+
+    def load_pro_poten(self):
+        traj_num = 5
+        path = "/home/caofan/RAF/crystal_WT/test/{0}/potential.xvg"
+        E_set = []
+        for i in range(1, traj_num+1):
+            E = []
+            with open(path.format(i)) as file:
+                for j in file.readlines():
+                    record = j.strip()
+                    if len(record) == 0:  # 遇见空行，表示迭代至文件末尾，跳出循环
+                        break
+                    if record[0] not in ["#", "@"]:
+                        li = record.split()
+                        E.append(float(li[1]))  # kJ/mol
+            E_set += E[:25000]
+
+        np.save("./potential.npy", np.array(E_set))
+
+
+
 # pp=Preprocess()
+# pp.load_pro_cor()
 # pp.load_mol_E_batch()
 # print(pp.load_mol_E(path="/Users/erik/Downloads/c7o2h10_md/c7o2h10_equilibrium.dat"))
 # c7o2h10_md = np.load("./c7o2h10_md.npy", allow_pickle=True).item()
 # Keys = c7o2h10_md.keys()
 # print(Keys)
 # print(c7o2h10_md["1000"].keys())
-
+"""Z = []
+element = pp.extract_info_SC("/Users/erik/Desktop/RAF/WT_crystal_modification.pdb")[-1]
+for i in element:
+    Z.append(pp.Z[i])
+print(Z)"""
+# pp.load_pro_cor()
