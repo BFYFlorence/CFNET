@@ -24,7 +24,7 @@ torch.set_printoptions(threshold=sys.maxsize, sci_mode=False)
 class discriminator(nn.Module):
     def __init__(self, input_s, output_s):
         super(discriminator, self).__init__()
-        # self.con1 = nn.Conv2d(2, 3, (2,2))  # 卷积核数量,深度,(卷积核大小)
+        # self.con1 = nn.Conv2d(2, 3, (2,2))  # Convolution kernel number, depth, (convolution kernel size)
 
     def forward(self, x):
         # return self.con1(x)
@@ -101,7 +101,8 @@ class MyLoss(nn.Module):
         # sum = torch.sum(x, dim=1, keepdim=True)
         # x = torch.div(x, sum)
 
-        # 通过索引的方式取出元素和自定一个核来执行矩阵相乘有着相似的效果，所以说梯度可以传下去
+        # Taking out elements by indexing and customizing a kernel to perform matrix multiplication have similar effects,
+        # so the gradient can be passed on
         # weight = model.state_dict()["map3.weight"].shape  # (1,16)
         loss = torch.mean(-torch.log(x[torch.arange(x.shape[0]), y.argmax(axis=1)]))
         return loss
@@ -257,7 +258,7 @@ class NN_analysis:
         ax1.set_title('', fontsize=20)
         ax1.set_xlabel('feat_num', fontsize=20)
         ax1.set_ylabel('weights', fontsize=20)
-        ax1.scatter(range(result.shape[0]), result.detach().numpy(), s=.1)  # 12种颜色
+        ax1.scatter(range(result.shape[0]), result.detach().numpy(), s=.1)  # 12 color
 
         """data_pool = dataset(load_data.float(), labels.float())
         test_loader = data.DataLoader(
@@ -273,7 +274,7 @@ class NN_analysis:
             ax1.set_title('', fontsize=20)
             ax1.set_xlabel('feat_num', fontsize=20)
             ax1.set_ylabel('weights', fontsize=20)
-            ax1.scatter(range(result.shape[0]), result.detach().numpy(), s=.1)  # 12种颜色"""
+            ax1.scatter(range(result.shape[0]), result.detach().numpy(), s=.1)"""
 
 
         plt.show()
@@ -301,7 +302,9 @@ class NN_analysis:
                 file.close()
 
     def test_model_single(self, model, lc):
-        # 由于在导出坐标时会有误差，所以自己算出来的二面角值会与plumed算出来的有细微差异，但是这是正常的
+        # Since there will be errors when exporting the coordinates,
+        # the dihedral angle value calculated by myself will be slightly different from that calculated by plumed,
+        # but this is normal
         with open("./forward/COLVAR", 'r') as file:
             calculation = []
             for i in file.readlines():
@@ -360,14 +363,14 @@ class AMSoftmax(nn.Module):
     def forward(self, x, lb):
         assert x.size()[0] == lb.size()[0]
         assert x.size()[1] == self.in_feats
-        # 求l2范数，模长，默认l2范数
-        x_norm = torch.norm(x, dim=1, keepdim=True).clamp(min=1e-12)  # 夹紧到某个区间
+        # l2 norm
+        x_norm = torch.norm(x, dim=1, keepdim=True).clamp(min=1e-12)  # Clamp to a certain interval
         x_norm = torch.div(x, x_norm)
         print("x_norm:", x_norm, x_norm.shape)
         w_norm = torch.norm(self.W, dim=0, keepdim=True).clamp(min=1e-12)
         w_norm = torch.div(self.W, w_norm)
         print("w_norm:", w_norm, w_norm.shape)
-        costh = torch.mm(x_norm, w_norm)  # 矩阵相乘运算
+        costh = torch.mm(x_norm, w_norm)  # Matrix multiplication
         # print(x_norm.shape, w_norm.shape, costh.shape)
         lb_view = lb.view(-1, 1)  # n行1列
         delt_costh = torch.zeros(costh.size()).scatter_(1, lb_view, self.m)  # in-place edit
@@ -384,9 +387,9 @@ lc = lc.Lacomplex()
 
 """if __name__ == '__main__':
     criteria = AMSoftmax(20, 5)
-    a = torch.randn(10, 20)  # 返回均值为0，方差为1的张量
+    a = torch.randn(10, 20)  # Returns a tensor with a mean of 0 and a variance of 1
     print("a:", a, a.shape)
-    lb = torch.randint(0, 5, (10, ), dtype=torch.long)  # 返回0-4，形状为(10,1)的张量
+    lb = torch.randint(0, 5, (10, ), dtype=torch.long)  # Returns 0-4, a tensor of shape (10,1)
     print("lb:", lb, lb.shape)
 
     loss,_ = criteria(a, lb)

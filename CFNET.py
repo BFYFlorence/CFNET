@@ -9,38 +9,6 @@ from my_activation import shifted_softplus
 
 from my_poolsegments import PoolSegments
 
-"""
-tensor.FloatTensor
-tensor.LongTensor
-tensor.ByteTensor
-tensor.CharTensor
-tensor.ShortTensor
-tensor.IntTensor
-torch.LongTensor
-其中torch.Tensor是默认的tensor.FloatTensor的简称。
-"""
-
-"""
-General semantics:
-Each tensor has at least one dimension.
-
-When iterating over the dimension sizes, starting at the trailing dimension, 
-the dimension sizes must either be equal, one of them is 1, or one of them does not exist.
-
-If two tensors x, y are “broadcastable”, the resulting tensor size is calculated as follows:
-
-If the number of dimensions of x and y are not equal, prepend 1 to the dimensions of the tensor with fewer dimensions to make them equal length.
-Then, for each dimension size, the resulting dimension size is the max of the sizes of x and y along that dimension.
-"""
-"""
-* represents hadamard product
-"""
-
-# 只有将自定义参数登记入模型中，使用optimizer清洗梯度时才能够正确执行，否则的话未登记的参数梯度会一直积累叠加
-# 如果牵涉到数学运算，不论是四则运算还是高级运算，都要保证数据位于同一个设备上
-# pytorch有一些函数，并不是只要输入都是cuda上，输出就一定在cuda上，例如torch.linspace
-# train_loss + test_loss
-
 class CFConv(nn.Module):
     # Continuous-filter convolution layer
     def __init__(self, fan_in, fan_out, nFM, pool_mode='sum',

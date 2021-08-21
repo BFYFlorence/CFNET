@@ -14,9 +14,9 @@ def shape(x):
 def molecules(nATOM, Z, R, batch_size):
 
     n_distances = nATOM ** 2 - nATOM  # 20个距离
-    # 将batch大小重复n_atoms次(包含首末), [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+    # Repeat the batch size n_atoms times (including the first and the end), [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
     seg_m = np.repeat(range(batch_size), nATOM).astype(np.int32)
-    # 将batch*n_atoms大小重复n_atoms-1次(不包含末),代表原子索引
+    # Repeat the batch*n_atoms size n_atoms-1 times (not including the end), which represents the atom index
     # [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4,
     #  5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9]
     idx_i = np.repeat(np.arange(nATOM * batch_size), nATOM - 1).astype(np.int32)
@@ -84,9 +84,9 @@ class dataset(data.Dataset):
         return len(self.data)
 
 def predict_energy_forces(model, data):
-    # 一个（*）传入的参数存储为一个元组（tuple）
-    # 两个（*）传入的参数存储为一个字典（dict）
-    # 要想使x支持求导，必须让x为浮点类型
+    # one（*）The incoming parameters are stored as a tuple
+    # two（*）The incoming parameters are stored as a dictionary
+    # If you want x to support derivation, you must let x be a floating-point type
     model.zero_grad()
     atoms_input = get_atoms_input(data)
     Ep = model(*atoms_input)
@@ -99,8 +99,8 @@ def l2_penalty(x:torch.Tensor):
 
 def CalLoss(Ep, Fp, E, F, rho, fit_energy=True, fit_forces=True):
     loss = 0.
-    # 均方误差(MSE) l2
-    # 平均绝对误差（MAE）l1
+    # (MSE) l2
+    #（MAE）l1
     if F != None:
         fdiff = F - Fp
         fmse = torch.mean(fdiff ** 2)

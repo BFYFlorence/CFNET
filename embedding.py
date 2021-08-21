@@ -32,9 +32,9 @@ class Embedding(nn.Module):
         # 0. 1. 0. 0. 0.
         # 0. 0. 1. 0. 0.
         # 0. 0. 0. 1. 0.
-        # 0. 0. 0. 0. 1.  ...I:待选的one-hot编码范围(n,n)，虽然可能体系原子m<n,但是只要满足n>m即可
+        # 0. 0. 0. 0. 1.  ...I:The range of one-hot encoding to be selected(n,n)，as long as n>m is satisfied
         ind = torch.index_select(I, dim=0, index=indices)
         # print(ind)  # one-hot
-        y = self.embeddings(ind)  # 初始化会全为1，之后再优化
+        y = self.embeddings(ind)  # Initialization will all be 1, this will be optimized later
         # print(y)
         return y

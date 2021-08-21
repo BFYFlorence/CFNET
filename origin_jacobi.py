@@ -11,7 +11,7 @@ def jacobi(omega: np.ndarray):
     q=0
     threshold = 0.0
     while True:
-        # 确定非对角线元素的最大值
+        # Determine the maximum value of off-diagonal elements
         print(omega)
         max = 0.0
         for ip in range(ndim):
@@ -20,13 +20,13 @@ def jacobi(omega: np.ndarray):
                     max = np.abs(omega[ip][iq])
                     p=ip
                     q=iq
-        # 满足精度要求则返回
+        # Return if the accuracy requirements are met
         if max <= threshold:
             for i in range(ndim):
                 eigenvalues[i] = omega[i][i]
             return eigenvalues, eigenvectors
 
-        # 超过最大迭代次数则跳出
+        # Jump out if the maximum number of iterations is exceeded
         if ncount > max_ncount:
             return False
 
@@ -36,7 +36,7 @@ def jacobi(omega: np.ndarray):
         Aqq = omega[q][q]
         h = Aqq - App
 
-        # 计算旋转角度
+        # Calculate the angle of rotation
         x = -Apq
         y = h / 2.0
         sin2phi = x / np.sqrt(x*x + y*y)
@@ -47,7 +47,7 @@ def jacobi(omega: np.ndarray):
         sinphi = sin2phi / np.sqrt(2*temp)
         cosphi = np.sqrt(1.0 - sinphi*sinphi)
 
-        # 更新元素
+        # Update element
         omega[p][p] = App*cosphi*cosphi + Aqq*sinphi*sinphi + Apq*sin2phi
         omega[q][q] = App*sinphi*sinphi + Aqq*cosphi*cosphi - Apq*sin2phi
         omega[p][q] = 0.0
@@ -65,7 +65,7 @@ def jacobi(omega: np.ndarray):
                 omega[i][p] = omega[i][q]*sinphi + temp_value*cosphi
                 omega[i][q] = omega[i][q]*cosphi - temp_value*sinphi
 
-        # 更新特征向量
+        # Update eigenvector
         for i in range(ndim):
             temp_value = eigenvectors[i][p]
             eigenvectors[i][p] = eigenvectors[i][q]*sinphi + temp_value*cosphi

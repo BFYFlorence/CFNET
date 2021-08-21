@@ -48,14 +48,14 @@ class Dense(nn.Module):
             print(x_shape[-1])
             print(self.fan_in)
         x_r = torch.reshape(x, (-1, self.fan_in))
-        # 权重与张量乘积
+        # Weight and tensor product
         # print("x_r:", x_r.device)
         # print("self.W:", self.W.device)
         y = torch.matmul(x_r, self.W)
-        # 是否使用偏置
+        # Whether to use bias
         if self.use_bias:
             y += self.b
-        # 激活
+        # activation
         if self.activation:
             y = self.activation(y)
         new_shape = (x_shape[0], self.fan_out)

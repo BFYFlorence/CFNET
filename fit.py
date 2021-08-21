@@ -67,11 +67,12 @@ def jacobi(omega: np.ndarray,  # (6,6)
            d: np.ndarray,  # (6,)
            # v: np.ndarray,  # (6,6)
            ):
-    """omega必须要是对称矩阵，并且对角线元素为0"""
+    """omega must be a symmetric matrix, and the diagonal elements are 0"""
     b = np.zeros(shape=(n,))
     z = np.zeros(shape=(n,))
     d = np.zeros(shape=(n,))  # store eigenvalue
-    v = np.identity(n)  # store eigenvector, 初始化为单位矩阵，目标是在对角线收敛的时候，左乘右乘目标矩阵使其成立
+    v = np.identity(n)  # store eigenvector, Initialized as the identity matrix,
+    # the goal is to multiply the target matrix from the left to the right to make it true when the diagonal converges
 
     for i in range(n):
         d[i] = omega[i][i]  # assign diagonal elements
@@ -88,7 +89,7 @@ def jacobi(omega: np.ndarray,  # (6,6)
         if sm == 0.0:  # threshhold==0 means calculation is completed
             print("iteration times: ", i)
             return d, v
-            # 返回后原矩阵只有对角线外一半的元素为0
+            # After returning, only the elements outside the diagonal half of the original matrix are 0
         if i < 4:
             threshold = 0.2 * sm / (n * n)
         else:
@@ -104,16 +105,16 @@ def jacobi(omega: np.ndarray,  # (6,6)
                     h = d[q] - d[p]  # denominator, (Aqq-App)
                     # print("p:", p, "q:", q, "h:", h)
                     # print("d:", d)
-                    if np.abs(h) + g == np.abs(h):  # 非必需
+                    if np.abs(h) + g == np.abs(h):  # not necessary
                         tan_phi = (omega[p][q]) / h
                     else:
-                        theta = 0.5 * h / (omega[p][q])  # 因为有时h会为0,所以取倒数 -tan2phi_(-1)
+                        theta = 0.5 * h / (omega[p][q])  # Because sometimes h will be 0, so take the reciprocal -tan2phi_(-1)
                         # print("theta:", theta)
-                        tan_phi = 1.0 / (np.abs(theta) + np.sqrt(1.0 + theta * theta))  # 求得tan_phi
+                        tan_phi = 1.0 / (np.abs(theta) + np.sqrt(1.0 + theta * theta))  # calculate tan_phi
                         if theta < 0.0:
                             tan_phi = -tan_phi
 
-                    cos_phi = 1.0 / np.sqrt(1.0 + tan_phi * tan_phi)  # cos_phi,可由分子分母同乘cosphi得到
+                    cos_phi = 1.0 / np.sqrt(1.0 + tan_phi * tan_phi)  # cos_phi,obtained by multiplying the numerator and denominator by cosphi
                     sin_phi = tan_phi * cos_phi  # sin_phi
                     tau = sin_phi / (1.0 + cos_phi)  # tan_(phi/2)
                     # ok, now it's clear
@@ -123,27 +124,31 @@ def jacobi(omega: np.ndarray,  # (6,6)
                     h = tan_phi * omega[p][q]  # tan_phi
                     # print("tan_phi:", tan_phi)
 
-                    z[p] -= h  # z记录一次迭代之后的变化量
+                    z[p] -= h  # z Records the amount of change after one iteration
                     z[q] += h
                     d[p] -= h  # d记录对角线值
                     d[q] += h
-                    omega[p][q] = 0.0  # 此位置置零, 因此才会能够计算得到旋转的目标角度
-                    # 此算法不需要更新App和Aqq,Apq和Aqp，前两个始终为0，后两个设为0，因此不适合所有矩阵的计算，只适用于特定矩阵
-                    # 更新或者不更新对角线元素，对计算其他位置的元素不产生任何影响
+                    omega[p][q] = 0.0  # This position is set to zero, so the target angle of rotation can be calculated
+                    # This algorithm does not need to update App and Aqq, Apq and Aqp, the first two are always 0,
+                    # the last two are set to 0, so it is not suitable for all matrix calculations,
+                    # only suitable for specific matrices
+
+                    # Update or do not update the diagonal elements,
+                    # will not affect the calculation of elements in other positions
                     for j in range(p):
-                        do_rotate(omega, j, p, j, q, tau, sin_phi)  # 更新p列q列，不包括对角线和中间元素
+                        do_rotate(omega, j, p, j, q, tau, sin_phi)  # Update columns p and q, excluding diagonals and middle elements
                     for j in range(p+1, q):
-                        do_rotate(omega, p, j, j, q, tau, sin_phi)  # 更新中间元素
+                        do_rotate(omega, p, j, j, q, tau, sin_phi)  # Update the middle element
                     for j in range(q+1, n):
-                        do_rotate(omega, p, j, q, j, tau, sin_phi)  # 更新p行q行，不包括对角线和中间元素
+                        do_rotate(omega, p, j, q, j, tau, sin_phi)  # Update p rows and q rows, excluding diagonals and middle elements
                     for j in range(n):
-                        do_rotate(v,     j, p, j, q, tau, sin_phi)  # 更新特征向量
+                        do_rotate(v,     j, p, j, q, tau, sin_phi)  # Update eigenvector
                     nrot += 1
 
         for p in range(n):
-            b[p] += z[p]  # 记录一次迭代之后特征值的变化
-            d[p] = b[p]  # 赋值给d
-            z[p] = 0.0  # 清空变化量
+            b[p] += z[p]  # Record the change of eigenvalue after one iteration
+            d[p] = b[p]  # Assign to d
+            z[p] = 0.0  # clear
 
     print("Error: Too many iterations in routine JACOBI\n")
 
@@ -195,12 +200,14 @@ def calc_fit_R(ndim:int,  # 3
     # determine h and k
     d, v = jacobi(omega.copy(), 2 * ndim, d)  # use .copy() to avoid in-place change
     # omega = input matrix a[0..n-1][0..n-1] must be symmetric
-    # 这种形式的矩阵求出特征值之后，总是一正一负的值
+
+    # After the eigenvalues of this form of matrix are calculated, there is always one positive and one negative value.
+
     # irot = number of jacobi rotations
     # d = d[0]..d[n-1] are the eigenvalues
     # v = v[0..n-1][0..n-1] contains the vectors in **columns**
     # print("d:", d)
-    # print("v:", v, v.shape)  # 特征向量的vh之间和vk之间也是正交的
+    # print("v:", v, v.shape)  # The eigenvectors between vh and vk are also orthogonal
     index = 0  # For the compiler only
     # Copy only the first ndim-1 eigenvectors
     for j in range(ndim-1):
@@ -212,8 +219,8 @@ def calc_fit_R(ndim:int,  # 3
         # print("index:", index)
         d[index] = -10000
         for i in range(ndim):
-            vh[j][i] = np.sqrt(2) * v[i][index]  # 乘以根号2是为了标准化单位向量? vh存储前三个元素
-            vk[j][i] = np.sqrt(2) * v[i + ndim][index]  # vk存储后三个元素
+            vh[j][i] = np.sqrt(2) * v[i][index]  # Multiplying by 2 is to normalize the unit vector? vh stores the first three elements
+            vk[j][i] = np.sqrt(2) * v[i + ndim][index]  # vk stores the last three elements
     # print("vh:\n", vh.T)
     # print("vk:\n", vk.T)
 
@@ -222,7 +229,7 @@ def calc_fit_R(ndim:int,  # 3
         # Calculate the last eigenvector as the outer-product of the first two.
         # This insures that the conformation is not mirrored and
         # prevents problems with completely flat reference structures.
-        vh[2] = np.cross(vh[0], vh[1])  # 不需要费心去选第三个，叉乘直接得到
+        vh[2] = np.cross(vh[0], vh[1])  # No need to bother to choose the third one, you can get it directly by cross product
         vk[2] = np.cross(vk[0], vk[1])
     elif ndim == 2:  # only x-y
         # Calculate the last eigenvector from the first one

@@ -109,7 +109,7 @@ def train():
             offset = mols["offset"].cuda()  # [20, 3]  [[0.,0.,0.,],...,[0.,0.,0.,]]
 
             # [0,...19]
-            seg_j = mols["seg_j"].cuda()  # 距离索引
+            seg_j = mols["seg_j"].cuda()  # distance index
             seg_i_sum = mols["seg_i_sum"].cuda()  # [ 0,  4,  8, 12, 16]
             seg_m = mols["seg_m"].cuda()
 

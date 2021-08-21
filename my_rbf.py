@@ -14,10 +14,10 @@ class RBF(nn.Module):
         self.gpu = gpu
         self.low = low
         self.high = high
-        self.gap = gap  # 决定rbf的间隔
-        self.dim = dim.cuda() if self.gpu else dim  # 维度扩充
+        self.gap = gap  # Determine the interval of rbf
+        self.dim = dim.cuda() if self.gpu else dim  # Dimensional expansion
         xrange = high - low
-        bins = torch.ceil(xrange / gap).int()  # 计算在此间隔下，允许划分的组数
+        bins = torch.ceil(xrange / gap).int()  # Calculate the number of groups allowed to be divided under this interval
         self.centers = torch.linspace(low, high, bins)  # (bins,)
         self.centers = torch.tensor(np.expand_dims(self.centers, -1), dtype=self.dtype)  # (bins,1)
         self.n_centers = len(self.centers)  # bins
@@ -41,7 +41,7 @@ class RBF(nn.Module):
 
         centers = self.centers.reshape((-1,))
 
-        d = d - centers  # 计算偏离每个中心的距离；不可以写成d-=centers,这样会报形状错误
+        d = d - centers  # Calculate the distance from each center; it cannot be written as d-=centers, it will report a shape error
         rbf = torch.exp(-(d ** 2) / self.gap)  # 计算径向基函数值
         rbf = rbf.reshape((d_shape[0], self.fan_out))
 

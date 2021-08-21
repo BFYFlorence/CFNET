@@ -17,8 +17,8 @@ class EuclideanDistances(nn.Module):
             print("chaning the type of tensor...")
             r = r.type(self.dtype)
             print("done!")
-        # idx_i:当前原子下标
-        # idx_j:需要遍历的其他原子下标
+        # idx_i: Current atomic index
+        # idx_j: Other atomic subscripts that need to be traversed
 
         ri = torch.index_select(r, dim=0, index=idx_i)
 
@@ -26,7 +26,7 @@ class EuclideanDistances(nn.Module):
 
         rij = ri - rj
 
-        # 计算原子之间的距离
+        # Calculate the distance between atoms
         dij2 = torch.sum(rij ** 2, dim=-1, keepdim=True)
         dij = torch.sqrt(dij2)  # (batch*n*(n-1), 1)
 

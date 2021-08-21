@@ -27,7 +27,7 @@ class Preprocess:
         self.torsion_atom = ["N", "C"]
         self.Z = {"CA":12.01, "N":14.01, "O":16, "S":32.06, "H":1.008, "C":12.01}
 
-    def processIon(self, aa):  # 处理质子化条件
+    def processIon(self, aa):  # Dealing with protonation conditions
         if aa in ['ASH']:
             return 'ASP'
         if aa in ['HIE', 'HID', 'HIP']:
@@ -44,13 +44,13 @@ class Preprocess:
                         # CA-C-N
                         # C-N-CA
                  atom1:np.ndarray,
-                 atom2:np.ndarray,  # 以atom2为中心原子计算键角
+                 atom2:np.ndarray,  # Calculate the bond angle with atom2 as the center atom
                  atom3:np.ndarray):
         vec1 = atom1 - atom2
         vec2 = atom3 - atom2
         return np.arccos(vec1.dot(vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2)))
 
-    def dihedral(self,  # 原子坐标
+    def dihedral(self,  # Atomic coordinates
                  p1:np.ndarray,
                  p2:np.ndarray,
                  p3:np.ndarray,
@@ -67,13 +67,6 @@ class Preprocess:
 
         result = np.arccos(np.dot(vec1, vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2))) * signature[0]
         return result
-
-    def processIon(self, aa):  # 处理质子化条件
-        if aa in ['ASH', 'ASN']:
-            return 'ASP'
-        if aa in ['HIE', 'HID', 'HIP']:
-            return 'HIS'
-        return aa
 
     def check_dih(self, name:list):
         if name[0] == "C" and name[1] == "N" and name[2] == "CA" and name[3] == "C":
@@ -178,26 +171,26 @@ class Preprocess:
         print("done")
 
     def extract_info_SC(self, path):  # single_chain
-        # 读取pdb文件信息
+        # Read pdb file information
         print("Reading:", path)
         print("Better check out the last column in the input file!")
         cor_file = []
-        atname = [] # 存储原子类型
-        element = []  # 存储元素类型
+        atname = [] # Store atom type
+        element = []  # Store element type
 
-        # index = 0  # 向atom中添加A,B两条链坐标
+        # index = 0  # Add the two chain coordinates of A and B to atom
         with open(path, 'r') as f:
             for i in f.readlines():
                 cor_atom = []
                 record = i.strip()
                 atom = record[:4].strip()
-                if atom != "ATOM":  # 检测ATOM起始行
+                if atom != "ATOM":
                     continue
                 # serial = record[6:11].strip()  # 697
-                resName = self.processIon(record[17:20].strip())  # PRO, 已处理过质子化条件
+                resName = self.processIon(record[17:20].strip())  # PRO
                 if resName not in self.aa:
                     continue
-                # current_chain = record[21].strip()  # 获取chain_ID,A
+                # current_chain = record[21].strip()
                 # resSeq = record[22:26].strip()  # 3
                 cor_atom.append(float(record[30:38].strip()))  # Å  x
                 cor_atom.append(float(record[38:46].strip()))  # y
@@ -331,7 +324,7 @@ class Preprocess:
             with open(path.format(i)) as file:
                 for j in file.readlines():
                     record = j.strip()
-                    if len(record) == 0:  # 遇见空行，表示迭代至文件末尾，跳出循环
+                    if len(record) == 0:
                         break
                     if record[0] not in ["#", "@"]:
                         li = record.split()
