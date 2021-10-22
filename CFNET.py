@@ -233,6 +233,7 @@ class CFnet(nn.Module):
             self.atom_pool.cuda()"""
                 
         
+        
     def forward(self, z, r, offsets, idx_i, idx_j, seg_m, seg_j, ratio_j, seg_i_sum):
         # embed atom species
         x = self.atom_embedding(z)
